@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dori-darmon elektron jurnali</title>
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <section class="login-view" id="loginView">
+      <form class="login-panel" id="loginForm">
+        <p class="eyebrow">Tibbiy hamshiralar uchun</p>
+        <h1>Dori-darmon elektron jurnali</h1>
+        <label>
+          Login
+          <input name="username" autocomplete="username" required>
+        </label>
+        <label>
+          Parol
+          <input name="password" type="password" autocomplete="current-password" required>
+        </label>
+        <input name="captcha_token" type="hidden" id="captchaToken">
+        <label>
+          Captcha
+          <div class="captcha-row">
+            <span id="captchaQuestion">...</span>
+            <button class="secondary" id="refreshCaptchaBtn" type="button">Qayta</button>
+          </div>
+          <input name="captcha_answer" inputmode="numeric" autocomplete="off" required>
+        </label>
+        <button type="submit">Kirish</button>
+      </form>
+    </section>
+
+    <div id="appView" hidden>
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">Elektron nazorat</p>
+          <h1>Dori-darmon elektron jurnali</h1>
+          <div class="session-line" id="sessionLine"></div>
+        </div>
+        <nav class="header-actions" aria-label="Asosiy menyu">
+          <button class="secondary" data-view-target="dashboard" type="button">Bosh sahifa</button>
+          <button class="secondary" data-view-target="medicine" type="button">Dori qabul qilish</button>
+          <button class="secondary" data-view-target="usage" type="button">Dori sarfi</button>
+          <button class="secondary" data-view-target="management" type="button">Boshqaruv</button>
+          <button class="secondary" id="refreshBtn" type="button">Yangilash</button>
+          <button id="exportBtn" type="button">Excelga export</button>
+          <button class="secondary icon-button" id="logoutBtn" type="button" aria-label="Chiqish" title="Chiqish">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M10 17l1.4-1.4L8.8 13H21v-2H8.8l2.6-2.6L10 7l-5 5 5 5z"></path>
+              <path d="M3 5h8V3H3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8v-2H3V5z"></path>
+            </svg>
+          </button>
+        </nav>
+      </header>
+
+      <main class="app-main dashboard-view" id="dashboardView">
+        <section class="filters" aria-label="Bosh sahifa filtrlari">
+          <form id="filterForm">
+            <label>
+              Boshlanish
+              <input name="from" type="date">
+            </label>
+            <label>
+              Tugash
+              <input name="to" type="date">
+            </label>
+            <label id="departmentFilterField">
+              Bo'lim
+              <select name="department"></select>
+            </label>
+            <label>
+              Qidiruv
+              <input name="q" placeholder="bemor, dori, hamshira...">
+            </label>
+            <div class="filter-actions">
+              <button type="submit">Ko'rish</button>
+              <button class="secondary" type="button" id="resetFiltersBtn">Tozalash</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="stats-grid" aria-label="Statistika">
+          <article>
+            <span>Sarf yozuvlari</span>
+            <strong id="entryCount">0</strong>
+          </article>
+          <article>
+            <span>Bemorlar</span>
+            <strong id="patientCount">0</strong>
+          </article>
+          <article>
+            <span>Ishlatilgan dori turlari</span>
+            <strong id="usedMedicineCount">0</strong>
+          </article>
+          <article>
+            <span>Jami sarf</span>
+            <strong id="usedTotal">0</strong>
+          </article>
+          <article>
+            <span>Dori partiyalari</span>
+            <strong id="stockBatchCount">0</strong>
+          </article>
+          <article>
+            <span>Jami qoldiq</span>
+            <strong id="remainingTotal">0</strong>
+          </article>
+          <article>
+            <span>Kam qolgan</span>
+            <strong id="lowStockCount">0</strong>
+          </article>
+          <article>
+            <span>Tugagan</span>
+            <strong id="emptyStockCount">0</strong>
+          </article>
+        </section>
+
+        <section class="summary-panel" aria-labelledby="monitoringTitle">
+          <div class="panel-title">
+            <div>
+              <h2 id="monitoringTitle">Bosh sahifa</h2>
+              <p class="muted">Filtrlangan davr va ruxsat berilgan bo'limlar bo'yicha umumiy holat.</p>
+            </div>
+          </div>
+          <div class="summary-columns">
+            <div>
+              <h3>Dorilar sarfi</h3>
+              <ol id="medicineSummary"></ol>
+            </div>
+            <div>
+              <h3>Bo'limlar sarfi</h3>
+              <ol id="departmentSummary"></ol>
+            </div>
+            <div>
+              <h3>Qoldiq bo'yicha bo'limlar</h3>
+              <ol id="stockDepartmentSummary"></ol>
+            </div>
+            <div>
+              <h3>Kam qolgan dorilar</h3>
+              <ol id="lowStockSummary"></ol>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <main class="app-main screen-view" id="medicineView" hidden>
+        <section class="screen-panel" aria-labelledby="medicineStockTitle">
+          <div class="panel-title">
+            <div>
+              <h2 id="medicineStockTitle">Dori qabul qilish</h2>
+              <p class="muted">Har bir dori partiyasi bo'lim, sana, shakl va real qoldiq bilan ro'yxatga olinadi.</p>
+            </div>
+          </div>
+          <form id="medicineForm" class="medicine-form">
+            <input name="id" type="hidden" id="medicineId">
+            <label>
+              Bo'lim
+              <select name="department" required></select>
+            </label>
+            <label>
+              Dori nomi
+              <input name="name" list="medicineNameList" autocomplete="off" required>
+            </label>
+            <label>
+              Qabul qilingan sana
+              <input name="received_date" id="medicineReceivedDate" type="date" required>
+            </label>
+            <label>
+              Qabul qilingan vaqt
+              <input name="received_time" id="medicineReceivedTime" type="time" required>
+            </label>
+            <label>
+              Shakli
+              <select name="form" required></select>
+            </label>
+            <label>
+              Qabul qilingan miqdor
+              <input name="initial_quantity" type="number" min="0.01" step="0.01" required>
+            </label>
+            <label>
+              Real qoldiq
+              <input name="remaining_quantity" type="number" min="0" step="0.01" required>
+            </label>
+            <label class="wide-field">
+              Izoh
+              <textarea name="note" rows="2"></textarea>
+            </label>
+            <div class="form-actions wide-field">
+              <button type="submit" id="saveMedicineBtn">Dorini ro'yxatga olish</button>
+              <button class="secondary" type="button" id="clearMedicineBtn">Tozalash</button>
+              <button class="secondary" type="button" id="cancelMedicineEditBtn" hidden>Bekor qilish</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="table-panel" aria-labelledby="medicineListTitle">
+          <div class="panel-title">
+            <div>
+              <h2 id="medicineListTitle">Dorilar ro'yxati</h2>
+              <p class="muted" id="medicineResultCount">0 ta dori partiyasi</p>
+            </div>
+            <label class="inline-search">
+              Qidiruv
+              <input id="medicineSearch" placeholder="dori nomi, bo'lim, shakl...">
+            </label>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Dori</th>
+                  <th>Bo'lim</th>
+                  <th>Qabul qilingan</th>
+                  <th>Miqdor</th>
+                  <th>Qoldiq</th>
+                  <th>Izoh</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="medicinesBody"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="medicineEmptyState" hidden>Dorilar hali kiritilmagan.</div>
+        </section>
+      </main>
+
+      <main class="app-main screen-view" id="usageView" hidden>
+        <section class="screen-panel" aria-labelledby="usageTitle">
+          <div class="panel-title">
+            <div>
+              <h2 id="usageTitle">Dori sarfi</h2>
+              <p class="muted">Dori ro'yxatdan tanlanadi, sarflangan miqdor esa qoldiqdan avtomatik ayriladi.</p>
+            </div>
+          </div>
+          <form id="usageForm" class="usage-form">
+            <label>
+              Sana
+              <input name="entry_date" id="usageDate" type="date" required>
+            </label>
+            <label>
+              Vaqt
+              <input name="entry_time" id="usageTime" type="time" required>
+            </label>
+            <label>
+              Bemor F.I.Sh.
+              <input name="patient_name" autocomplete="off" required>
+            </label>
+            <label>
+              Bemor ID yoki karta raqami
+              <input name="patient_id" autocomplete="off">
+            </label>
+            <label>
+              Dori qidirish
+              <input id="usageMedicineSearch" placeholder="nomi, bo'limi yoki shakli">
+            </label>
+            <label>
+              Dori nomi
+              <select name="medicine_id" id="usageMedicineSelect" required></select>
+            </label>
+            <label>
+              Ishlatilgan miqdor
+              <input name="quantity" type="number" min="0.01" step="0.01" required>
+            </label>
+            <label>
+              Doza
+              <input name="dose" placeholder="masalan: 500 mg">
+            </label>
+            <label>
+              Hamshira F.I.Sh.
+              <input name="nurse_name" autocomplete="off" required>
+            </label>
+            <label>
+              Yuborish yo'li
+              <input name="route" list="routeList" placeholder="og'iz, vena">
+            </label>
+            <label>
+              Retsept yoki tayinlov raqami
+              <input name="prescription_no" autocomplete="off">
+            </label>
+            <label class="wide-field">
+              Izoh
+              <textarea name="note" rows="2"></textarea>
+            </label>
+            <div class="stock-hint wide-field" id="usageStockHint">Dori tanlanganda qoldiq ko'rinadi.</div>
+            <div class="form-actions wide-field">
+              <button type="submit">Sarfni saqlash</button>
+              <button class="secondary" type="button" id="clearUsageBtn">Tozalash</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="table-panel" aria-labelledby="usageListTitle">
+          <div class="panel-title">
+            <div>
+              <h2 id="usageListTitle">Dori sarfi jurnali</h2>
+              <p class="muted" id="entryResultCount">0 ta yozuv</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Sana</th>
+                  <th>Bemor</th>
+                  <th>Dori</th>
+                  <th>Miqdor</th>
+                  <th>Hamshira</th>
+                  <th>Bo'lim</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="entriesBody"></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="entryEmptyState" hidden>Sarf yozuvlari hali kiritilmagan.</div>
+        </section>
+      </main>
+
+      <main class="app-main management-view" id="managementView" hidden>
+        <section class="management-menu" aria-labelledby="managementMenuTitle">
+          <p class="eyebrow">Boshqaruv paneli</p>
+          <h2 id="managementMenuTitle">Punktlar</h2>
+          <div class="management-actions">
+            <button class="secondary" data-management-target="buildings" type="button">Korpuslar</button>
+            <button class="secondary" data-management-target="departments" type="button">Bo'limlar</button>
+            <button class="secondary" data-management-target="users" type="button">Foydalanuvchilar</button>
+            <button class="secondary" data-management-target="activity" type="button">Statistika va loglar</button>
+          </div>
+        </section>
+
+        <section class="management-card" data-management-panel="buildings" aria-labelledby="buildingAdminTitle">
+          <div class="panel-title">
+            <div>
+              <h2 id="buildingAdminTitle">Korpuslar</h2>
+              <p class="muted">Korpus nomi va izohi alohida ma'lumotnoma sifatida yuritiladi.</p>
+            </div>
+          </div>
+          <form id="buildingForm" class="building-form">
+            <input name="id" type="hidden" id="buildingId">
+            <label>
+              Korpus nomi
+              <input name="name" autocomplete="off" required>
+            </label>
+            <label>
+              Izoh
+              <textarea name="note" rows="2"></textarea>
+            </label>
+            <div class="form-actions wide-field">
+              <button type="submit" id="saveBuildingBtn">Korpus qo'shish</button>
+              <button class="secondary" type="button" id="cancelBuildingEditBtn" hidden>Bekor qilish</button>
+            </div>
+          </form>
+          <div class="table-wrap compact">
+            <table>
+              <thead>
+                <tr>
+                  <th>Korpus</th>
+                  <th>Izoh</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="buildingsBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="management-card" data-management-panel="departments" aria-labelledby="departmentAdminTitle">
+          <div class="panel-title">
+            <div>
+              <h2 id="departmentAdminTitle">Bo'limlar</h2>
+              <p class="muted">Bo'lim nomi, korpus va izoh alohida ma'lumotnoma sifatida yuritiladi.</p>
+            </div>
+          </div>
+          <form id="departmentForm" class="department-form">
+            <input name="id" type="hidden" id="departmentId">
+            <label>
+              Bo'lim nomi
+              <input name="name" autocomplete="off" required>
+            </label>
+            <label>
+              Korpus
+              <select name="building" required></select>
+            </label>
+            <label>
+              Izoh
+              <textarea name="note" rows="2"></textarea>
+            </label>
+            <div class="form-actions wide-field">
+              <button type="submit" id="saveDepartmentBtn">Bo'lim qo'shish</button>
+              <button class="secondary" type="button" id="cancelDepartmentEditBtn" hidden>Bekor qilish</button>
+            </div>
+          </form>
+          <div class="table-wrap compact">
+            <table>
+              <thead>
+                <tr>
+                  <th>Bo'lim</th>
+                  <th>Korpus</th>
+                  <th>Izoh</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="departmentsBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="management-card" data-management-panel="users" aria-labelledby="usersAdminTitle" hidden>
+          <div class="panel-title">
+            <div>
+              <h2 id="usersAdminTitle">Foydalanuvchilar</h2>
+              <p class="muted" id="userCount">0 ta akkaunt</p>
+            </div>
+          </div>
+          <form id="userForm" class="user-form">
+            <input name="id" type="hidden" id="userId">
+            <label>
+              Login
+              <input name="username" autocomplete="off" required>
+            </label>
+            <label>
+              F.I.Sh.
+              <input name="full_name" autocomplete="off" required>
+            </label>
+            <label>
+              Rol
+              <select name="role" required></select>
+            </label>
+            <label id="userDepartmentLabel">
+              Bo'lim
+              <select name="department"></select>
+            </label>
+            <label id="userBuildingLabel">
+              Korpus
+              <select name="building"></select>
+            </label>
+            <label>
+              Holat
+              <select name="is_active">
+                <option value="1">Faol</option>
+                <option value="0">Nofaol</option>
+              </select>
+            </label>
+            <label>
+              Parol
+              <input name="password" type="password" autocomplete="new-password" required>
+            </label>
+            <div class="form-actions wide-field">
+              <button type="submit" id="saveUserBtn">Akkaunt yaratish</button>
+              <button class="secondary" type="button" id="cancelUserEditBtn" hidden>Bekor qilish</button>
+            </div>
+          </form>
+          <div class="table-wrap compact">
+            <table>
+              <thead>
+                <tr>
+                  <th>Login</th>
+                  <th>F.I.Sh.</th>
+                  <th>Rol</th>
+                  <th>Bo'lim/Korpus</th>
+                  <th>Holat</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="usersBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="management-card" data-management-panel="activity" aria-labelledby="activityAdminTitle" hidden>
+          <div class="panel-title">
+            <div>
+              <h2 id="activityAdminTitle">Statistika va loglar</h2>
+              <p class="muted">Admin ko'ra oladigan foydalanuvchilar faolligi va oxirgi amallar jurnali.</p>
+            </div>
+          </div>
+          <section class="stats-grid compact-stats" aria-label="Foydalanuvchilar statistikasi">
+            <article>
+              <span>Foydalanuvchilar</span>
+              <strong id="adminUserTotal">0</strong>
+            </article>
+            <article>
+              <span>Faol akkauntlar</span>
+              <strong id="adminActiveUserTotal">0</strong>
+            </article>
+            <article>
+              <span>Dori sarfi yozuvlari</span>
+              <strong id="adminEntryTotal">0</strong>
+            </article>
+            <article>
+              <span>Log yozuvlari</span>
+              <strong id="adminLogTotal">0</strong>
+            </article>
+          </section>
+          <div class="activity-grid">
+            <section class="table-panel inner-table" aria-labelledby="userStatsTitle">
+              <div class="panel-title">
+                <h3 id="userStatsTitle">Foydalanuvchilar statistikasi</h3>
+              </div>
+              <div class="table-wrap compact">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Foydalanuvchi</th>
+                      <th>Rol</th>
+                      <th>Bo'lim/Korpus</th>
+                      <th>Sarf</th>
+                      <th>Dori qabul</th>
+                      <th>Log</th>
+                      <th>Oxirgi faollik</th>
+                    </tr>
+                  </thead>
+                  <tbody id="userStatsBody"></tbody>
+                </table>
+              </div>
+            </section>
+            <section class="table-panel inner-table" aria-labelledby="auditLogTitle">
+              <div class="panel-title">
+                <h3 id="auditLogTitle">Log jurnali</h3>
+              </div>
+              <div class="table-wrap compact">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Vaqt</th>
+                      <th>Foydalanuvchi</th>
+                      <th>Amal</th>
+                      <th>Obyekt</th>
+                      <th>Izoh</th>
+                    </tr>
+                  </thead>
+                  <tbody id="auditLogsBody"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <datalist id="medicineNameList"></datalist>
+    <datalist id="routeList">
+      <option value="og'iz orqali"></option>
+      <option value="vena ichiga"></option>
+      <option value="mushak ichiga"></option>
+      <option value="teri ostiga"></option>
+      <option value="tomchi"></option>
+    </datalist>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
