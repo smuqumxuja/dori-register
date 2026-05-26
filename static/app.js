@@ -230,12 +230,16 @@ function showView(name) {
   state.currentView = name;
   applyRoleUi();
   if (name === "medicine") {
-    renderMedicines();
+  if (!medicineForm.elements.namedItem("id").value) {
+    setMedicineCurrentDateTime();
   }
-  if (name === "usage") {
-    renderMedicineChoices();
-    updateUsageStockHint();
-  }
+  renderMedicines();
+}
+if (name === "usage") {
+  setUsageCurrentDateTime();
+  renderMedicineChoices();
+  updateUsageStockHint();
+}
   if (name === "management") {
     const defaultSection = canManageDepartments() ? state.managementSection : "users";
     showManagementSection(defaultSection);
