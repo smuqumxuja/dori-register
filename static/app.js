@@ -91,6 +91,26 @@ function localDateTimeParts() {
   };
 }
 
+function setCurrentDateTime(dateInput, timeInput) {
+  const current = localDateTimeParts();
+  dateInput.value = current.date;
+  timeInput.value = current.time;
+}
+
+function setMedicineCurrentDateTime() {
+  setCurrentDateTime(
+    medicineForm.elements.namedItem("received_date"),
+    medicineForm.elements.namedItem("received_time"),
+  );
+}
+
+function setUsageCurrentDateTime() {
+  setCurrentDateTime(
+    usageForm.elements.namedItem("entry_date"),
+    usageForm.elements.namedItem("entry_time"),
+  );
+}
+
 function showToast(message, isError = false) {
   toast.textContent = message;
   toast.classList.toggle("error", isError);
@@ -351,9 +371,7 @@ function currentQueryString() {
 function resetMedicineForm() {
   medicineForm.reset();
   document.querySelector("#medicineId").value = "";
-  const current = localDateTimeParts();
-  document.querySelector("#medicineReceivedDate").value = current.date;
-  document.querySelector("#medicineReceivedTime").value = current.time;
+  setMedicineCurrentDateTime();
   if (!isSuperAdmin() && state.options.departments?.length === 1) {
     medicineForm.elements.namedItem("department").value = state.options.departments[0];
   }
@@ -379,9 +397,7 @@ function startEditMedicine(medicine) {
 
 function resetUsageForm() {
   usageForm.reset();
-  const current = localDateTimeParts();
-  document.querySelector("#usageDate").value = current.date;
-  document.querySelector("#usageTime").value = current.time;
+  setUsageCurrentDateTime();
   usageForm.elements.namedItem("nurse_name").value = state.user?.full_name || "";
   usageMedicineSearch.value = "";
   renderMedicineChoices();
